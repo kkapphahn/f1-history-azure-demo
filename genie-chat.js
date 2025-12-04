@@ -109,8 +109,17 @@ class GenieChat {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to send message');
+                let errorMsg = 'Failed to send message';
+                try {
+                    const error = await response.json();
+                    errorMsg = error.error || errorMsg;
+                    if (error.details) {
+                        errorMsg += ` (${error.details})`;
+                    }
+                } catch (e) {
+                    // If JSON parsing fails, use default message
+                }
+                throw new Error(errorMsg);
             }
 
             const data = await response.json();

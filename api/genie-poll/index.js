@@ -7,10 +7,16 @@ module.exports = async function (context, req) {
     const DATABRICKS_PAT_TOKEN = process.env.DATABRICKS_PAT_TOKEN;
     const GENIE_SPACE_ID = process.env.GENIE_SPACE_ID;
 
-    if (!DATABRICKS_WORKSPACE_URL || !DATABRICKS_PAT_TOKEN || !GENIE_SPACE_ID) {
+    if (!DATABRICKS_WORKSPACE_URL || !DATABRICKS_PAT_TOKEN || !GENIE_SPACE_ID ||
+        DATABRICKS_WORKSPACE_URL.includes('PLACEHOLDER') ||
+        DATABRICKS_PAT_TOKEN.includes('PLACEHOLDER') ||
+        GENIE_SPACE_ID.includes('PLACEHOLDER')) {
         context.res = {
             status: 500,
-            body: { error: 'Server configuration error' }
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Server configuration error' })
         };
         return;
     }
@@ -20,7 +26,10 @@ module.exports = async function (context, req) {
     if (!conversationId || !messageId) {
         context.res = {
             status: 400,
-            body: { error: 'Conversation ID and Message ID are required' }
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Conversation ID and Message ID are required' })
         };
         return;
     }
@@ -42,7 +51,10 @@ module.exports = async function (context, req) {
             
             context.res = {
                 status: response.status,
-                body: { error: 'Failed to poll message status' }
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ error: 'Failed to poll message status' })
             };
             return;
         }
@@ -54,7 +66,7 @@ module.exports = async function (context, req) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: data
+            body: JSON.stringify(data)
         };
 
     } catch (error) {
@@ -62,10 +74,13 @@ module.exports = async function (context, req) {
         
         context.res = {
             status: 500,
-            body: {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 error: 'Internal server error',
                 message: error.message
-            }
+            })
         };
     }
 };

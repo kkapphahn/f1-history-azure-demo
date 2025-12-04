@@ -9,13 +9,19 @@ module.exports = async function (context, req) {
     const GENIE_SPACE_ID = process.env.GENIE_SPACE_ID;
 
     // Validate environment variables
-    if (!DATABRICKS_WORKSPACE_URL || !DATABRICKS_PAT_TOKEN || !GENIE_SPACE_ID) {
+    if (!DATABRICKS_WORKSPACE_URL || !DATABRICKS_PAT_TOKEN || !GENIE_SPACE_ID ||
+        DATABRICKS_WORKSPACE_URL.includes('PLACEHOLDER') ||
+        DATABRICKS_PAT_TOKEN.includes('PLACEHOLDER') ||
+        GENIE_SPACE_ID.includes('PLACEHOLDER')) {
         context.res = {
             status: 500,
-            body: {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 error: 'Server configuration error. Please contact administrator.',
-                details: 'Missing required environment variables'
-            }
+                details: 'Environment variables not configured'
+            })
         };
         return;
     }
@@ -26,7 +32,10 @@ module.exports = async function (context, req) {
     if (!message) {
         context.res = {
             status: 400,
-            body: { error: 'Message is required' }
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Message is required' })
         };
         return;
     }
@@ -58,10 +67,13 @@ module.exports = async function (context, req) {
             
             context.res = {
                 status: response.status,
-                body: {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
                     error: 'Failed to communicate with Databricks Genie',
                     details: `Status: ${response.status}`
-                }
+                })
             };
             return;
         }
@@ -73,7 +85,7 @@ module.exports = async function (context, req) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: data
+            body: JSON.stringify(data)
         };
 
     } catch (error) {
@@ -81,10 +93,13 @@ module.exports = async function (context, req) {
         
         context.res = {
             status: 500,
-            body: {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 error: 'Internal server error',
                 message: error.message
-            }
+            })
         };
     }
 };

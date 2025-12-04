@@ -37,7 +37,7 @@ class GenieChat {
     addWelcomeMessage() {
         this.addMessage(
             'bot',
-            'Welcome to the F1 Genie Assistant! Ask me anything about Formula 1 racing statistics, driver records, team performance, or historical data.'
+            'Welcome to the F1 Genie Assistant! Ask me questions about F1 statistics and I\'ll show you the SQL query used. For best results, ask questions like "Show me the top 10 drivers by wins" or "What were Hamilton\'s results in 2020?"'
         );
     }
 

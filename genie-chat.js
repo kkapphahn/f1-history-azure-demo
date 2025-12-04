@@ -168,7 +168,7 @@ class GenieChat {
                     this.removeLoadingMessage();
                     
                     if (data.status === 'COMPLETED') {
-                        this.displayGenieResponse(data);
+                        await this.displayGenieResponse(data);
                     } else {
                         this.addMessage('bot', 'Sorry, I could not generate a response. Please try again.');
                     }
@@ -192,7 +192,7 @@ class GenieChat {
         this.addMessage('bot', 'The request timed out. Please try asking your question again.');
     }
 
-    displayGenieResponse(data) {
+    async displayGenieResponse(data) {
         let responseHtml = '';
         
         // Check if there are attachments with query results
@@ -201,23 +201,24 @@ class GenieChat {
                 // Display SQL query if available
                 if (attachment.query) {
                     const query = attachment.query;
-                    responseHtml += `<div style="margin-bottom: 1rem;">`;
                     
-                    if (query.description) {
-                        responseHtml += `<p style="margin-bottom: 0.5rem;">${this.escapeHtml(query.description)}</p>`;
+                    // Fetch actual results if statement_id is available
+                    if (query.statement_id) {
+                        try {
+                            const resultsResponse = await fetch(`/api/genie/results/${query.statement_id}`);
+                            if (resultsResponse.ok) {
+                                const resultsData = await resultsResponse.json();
+                                responseHtml += await this.formatQueryResults(resultsData, query);
+                            } else {
+                                responseHtml += this.formatQueryMetadata(query);
+                            }
+                        } catch (error) {
+                            console.error('Error fetching results:', error);
+                            responseHtml += this.formatQueryMetadata(query);
+                        }
+                    } else {
+                        responseHtml += this.formatQueryMetadata(query);
                     }
-                    
-                    if (query.query) {
-                        responseHtml += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; margin: 0.5rem 0; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">`;
-                        responseHtml += `<code>${this.escapeHtml(query.query)}</code>`;
-                        responseHtml += `</div>`;
-                    }
-                    
-                    if (query.query_result_metadata && query.query_result_metadata.row_count !== undefined) {
-                        responseHtml += `<p style="font-size: 0.9rem; color: var(--accent-gold); margin-top: 0.5rem;">📊 Found ${query.query_result_metadata.row_count} result(s)</p>`;
-                    }
-                    
-                    responseHtml += `</div>`;
                 }
                 
                 // Display text responses
@@ -253,6 +254,92 @@ class GenieChat {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    async formatQueryResults(resultsData, query) {
+        let html = '<div style="margin-bottom: 1rem;">';
+        
+        // Add description if available
+        if (query.description) {
+            html += `<p style="margin-bottom: 0.5rem; font-weight: 600;">Answer:</p>`;
+        }
+        
+        // Display the actual data results
+        if (resultsData.result && resultsData.result.data_array) {
+            const columns = resultsData.manifest.schema.columns || [];
+            const rows = resultsData.result.data_array;
+            
+            if (rows.length > 0) {
+                // For single row results, display as a clean answer
+                if (rows.length === 1 && columns.length <= 2) {
+                    html += '<p style="font-size: 1.1rem; color: var(--accent-gold); font-weight: 600; margin: 0.5rem 0;">';
+                    if (columns.length === 1) {
+                        html += this.escapeHtml(String(rows[0][0]));
+                    } else {
+                        html += `${this.escapeHtml(String(rows[0][0]))}: ${this.escapeHtml(String(rows[0][1]))}`;
+                    }
+                    html += '</p>';
+                } else {
+                    // For multiple rows, display as a table
+                    html += '<div style="max-height: 300px; overflow-y: auto; margin: 0.5rem 0;">';
+                    html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">';
+                    html += '<thead><tr>';
+                    columns.forEach(col => {
+                        html += `<th style="text-align: left; padding: 0.4rem; border-bottom: 2px solid var(--primary-red); color: var(--accent-gold);">${this.escapeHtml(col.name)}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+                    
+                    // Limit to first 10 rows for display
+                    const displayRows = rows.slice(0, 10);
+                    displayRows.forEach((row, idx) => {
+                        html += `<tr style="border-bottom: 1px solid rgba(225, 6, 0, 0.2);">`;
+                        row.forEach(cell => {
+                            html += `<td style="padding: 0.4rem;">${this.escapeHtml(String(cell || ''))}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    
+                    if (rows.length > 10) {
+                        html += `<p style="font-size: 0.85rem; font-style: italic; margin-top: 0.5rem;">Showing first 10 of ${rows.length} results</p>`;
+                    }
+                }
+                
+                html += `<p style="font-size: 0.85rem; color: var(--gray-text); margin-top: 0.5rem;">📊 ${rows.length} result(s)</p>`;
+            }
+        }
+        
+        // Show query in collapsible section
+        if (query.query) {
+            html += '<details style="margin-top: 0.5rem;"><summary style="cursor: pointer; font-size: 0.85rem; color: var(--gray-text);">View SQL Query</summary>';
+            html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-family: monospace; font-size: 0.75rem; overflow-x: auto;">`;
+            html += `<code>${this.escapeHtml(query.query)}</code>`;
+            html += `</div></details>`;
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
+    formatQueryMetadata(query) {
+        let html = '<div style="margin-bottom: 1rem;">';
+        
+        if (query.description) {
+            html += `<p style="margin-bottom: 0.5rem;">${this.escapeHtml(query.description)}</p>`;
+        }
+        
+        if (query.query) {
+            html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; margin: 0.5rem 0; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">`;
+            html += `<code>${this.escapeHtml(query.query)}</code>`;
+            html += `</div>`;
+        }
+        
+        if (query.query_result_metadata && query.query_result_metadata.row_count !== undefined) {
+            html += `<p style="font-size: 0.9rem; color: var(--accent-gold); margin-top: 0.5rem;">📊 Found ${query.query_result_metadata.row_count} result(s)</p>`;
+        }
+        
+        html += '</div>';
+        return html;
     }
 }
 

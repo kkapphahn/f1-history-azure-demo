@@ -648,6 +648,33 @@ html {
     border-bottom-left-radius: 4px;
 }
 
+.bot-message .message-bubble code {
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #50fa7b;
+    line-height: 1.4;
+}
+
+.bot-message .message-bubble ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.bot-message .message-bubble ul li {
+    padding-left: 1rem;
+    position: relative;
+    margin-bottom: 0.3rem;
+}
+
+.bot-message .message-bubble ul li:before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--primary-red);
+    font-weight: bold;
+}
+
 .typing-indicator {
     display: flex;
     gap: 4px;

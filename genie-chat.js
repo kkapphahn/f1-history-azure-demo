@@ -207,10 +207,14 @@ class GenieChat {
                     if (attachmentId && data.conversation_id && data.id) {
                         try {
                             const resultsResponse = await fetch(`/api/genie/results/${data.conversation_id}/${data.id}/${attachmentId}`);
+                            console.log('Results response status:', resultsResponse.status);
                             if (resultsResponse.ok) {
                                 const resultsData = await resultsResponse.json();
+                                console.log('Results data received:', resultsData);
                                 responseHtml += await this.formatQueryResults(resultsData, query);
                             } else {
+                                const errorText = await resultsResponse.text();
+                                console.error('Results fetch failed:', resultsResponse.status, errorText);
                                 responseHtml += this.formatQueryMetadata(query);
                             }
                         } catch (error) {
@@ -218,6 +222,7 @@ class GenieChat {
                             responseHtml += this.formatQueryMetadata(query);
                         }
                     } else {
+                        console.log('Missing required IDs - attachmentId:', attachmentId, 'conversation_id:', data.conversation_id, 'message_id:', data.id);
                         responseHtml += this.formatQueryMetadata(query);
                     }
                 }
@@ -260,24 +265,31 @@ class GenieChat {
     async formatQueryResults(resultsData, query) {
         let html = '<div style="margin-bottom: 1rem;">';
         
+        console.log('Formatting query results, full data:', JSON.stringify(resultsData, null, 2));
+        
         // Handle Genie query-result format
         let columns = [];
         let rows = [];
         
         if (resultsData.statement_response) {
             const stmtResponse = resultsData.statement_response;
+            console.log('Found statement_response:', stmtResponse);
             if (stmtResponse.result && stmtResponse.result.data_array) {
                 rows = stmtResponse.result.data_array;
+                console.log('Found data_array with', rows.length, 'rows');
                 if (stmtResponse.manifest && stmtResponse.manifest.schema && stmtResponse.manifest.schema.columns) {
                     columns = stmtResponse.manifest.schema.columns;
+                    console.log('Found columns:', columns.map(c => c.name));
                 }
             }
         }
         // Fallback to old format
         else if (resultsData.result && resultsData.result.data_array) {
             rows = resultsData.result.data_array;
+            console.log('Found data_array (old format) with', rows.length, 'rows');
             if (resultsData.manifest && resultsData.manifest.schema && resultsData.manifest.schema.columns) {
                 columns = resultsData.manifest.schema.columns;
+                console.log('Found columns (old format):', columns.map(c => c.name));
             }
         }
         

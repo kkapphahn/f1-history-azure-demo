@@ -32,8 +32,26 @@ module.exports = async function (context, req) {
         return;
     }
 
+    // Extract parameters - expecting format: conversationId/messageId/attachmentId
+    const parts = statementId.split('/');
+    const conversationId = parts[0];
+    const messageId = parts[1];
+    const attachmentId = parts[2];
+
+    if (!conversationId || !messageId || !attachmentId) {
+        context.res = {
+            status: 400,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Invalid statement ID format. Expected: conversationId/messageId/attachmentId' })
+        };
+        return;
+    }
+
     try {
-        const resultUrl = `${DATABRICKS_WORKSPACE_URL}/api/2.0/sql/statements/${statementId}/result`;
+        const GENIE_SPACE_ID = process.env.GENIE_SPACE_ID;
+        const resultUrl = `${DATABRICKS_WORKSPACE_URL}/api/2.0/genie/spaces/${GENIE_SPACE_ID}/conversations/${conversationId}/messages/${messageId}/query-result/${attachmentId}`;
 
         const response = await fetch(resultUrl, {
             method: 'GET',

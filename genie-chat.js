@@ -201,11 +201,12 @@ class GenieChat {
                 // Display SQL query if available
                 if (attachment.query) {
                     const query = attachment.query;
+                    const attachmentId = attachment.attachment_id;
                     
-                    // Fetch actual results if statement_id is available
-                    if (query.statement_id) {
+                    // Fetch actual results using conversation_id, message_id, and attachment_id
+                    if (attachmentId && data.conversation_id && data.id) {
                         try {
-                            const resultsResponse = await fetch(`/api/genie/results/${query.statement_id}`);
+                            const resultsResponse = await fetch(`/api/genie/results/${data.conversation_id}/${data.id}/${attachmentId}`);
                             if (resultsResponse.ok) {
                                 const resultsData = await resultsResponse.json();
                                 responseHtml += await this.formatQueryResults(resultsData, query);
@@ -259,49 +260,67 @@ class GenieChat {
     async formatQueryResults(resultsData, query) {
         let html = '<div style="margin-bottom: 1rem;">';
         
-        // Display the actual data results
-        if (resultsData && resultsData.result && resultsData.result.data_array) {
-            const columns = resultsData.manifest.schema.columns || [];
-            const rows = resultsData.result.data_array;
-            
-            if (rows.length > 0) {
-                // For single row results, display as a clean answer
-                if (rows.length === 1 && columns.length <= 2) {
-                    html += '<p style="font-size: 1.1rem; color: var(--accent-gold); font-weight: 600; margin: 0.5rem 0;">';
-                    if (columns.length === 1) {
-                        html += this.escapeHtml(String(rows[0][0]));
-                    } else {
-                        html += `${this.escapeHtml(String(rows[0][0]))}: ${this.escapeHtml(String(rows[0][1]))}`;
-                    }
-                    html += '</p>';
-                } else {
-                    // For multiple rows, display as a table
-                    html += '<div style="max-height: 300px; overflow-y: auto; margin: 0.5rem 0;">';
-                    html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">';
-                    html += '<thead><tr>';
-                    columns.forEach(col => {
-                        html += `<th style="text-align: left; padding: 0.4rem; border-bottom: 2px solid var(--primary-red); color: var(--accent-gold);">${this.escapeHtml(col.name)}</th>`;
-                    });
-                    html += '</tr></thead><tbody>';
-                    
-                    // Limit to first 10 rows for display
-                    const displayRows = rows.slice(0, 10);
-                    displayRows.forEach((row, idx) => {
-                        html += `<tr style="border-bottom: 1px solid rgba(225, 6, 0, 0.2);">`;
-                        row.forEach(cell => {
-                            html += `<td style="padding: 0.4rem;">${this.escapeHtml(String(cell || ''))}</td>`;
-                        });
-                        html += '</tr>';
-                    });
-                    html += '</tbody></table></div>';
-                    
-                    if (rows.length > 10) {
-                        html += `<p style="font-size: 0.85rem; font-style: italic; margin-top: 0.5rem;">Showing first 10 of ${rows.length} results</p>`;
-                    }
+        // Handle Genie query-result format
+        let columns = [];
+        let rows = [];
+        
+        if (resultsData.statement_response) {
+            const stmtResponse = resultsData.statement_response;
+            if (stmtResponse.result && stmtResponse.result.data_array) {
+                rows = stmtResponse.result.data_array;
+                if (stmtResponse.manifest && stmtResponse.manifest.schema && stmtResponse.manifest.schema.columns) {
+                    columns = stmtResponse.manifest.schema.columns;
                 }
-                
-                html += `<p style="font-size: 0.85rem; color: var(--gray-text); margin-top: 0.5rem;">📊 ${rows.length} result(s)</p>`;
             }
+        }
+        // Fallback to old format
+        else if (resultsData.result && resultsData.result.data_array) {
+            rows = resultsData.result.data_array;
+            if (resultsData.manifest && resultsData.manifest.schema && resultsData.manifest.schema.columns) {
+                columns = resultsData.manifest.schema.columns;
+            }
+        }
+        
+        // Display the actual data results
+        if (rows && rows.length > 0 && columns && columns.length > 0) {
+            html += '<p style="font-weight: 600; margin-bottom: 0.5rem;">📊 Answer:</p>';
+            
+            // For single row results, display as a clean answer
+            if (rows.length === 1 && columns.length <= 2) {
+                html += '<p style="font-size: 1.1rem; color: var(--accent-gold); font-weight: 600; margin: 0.5rem 0;">';
+                if (columns.length === 1) {
+                    html += this.escapeHtml(String(rows[0][0]));
+                } else {
+                    html += `${this.escapeHtml(String(rows[0][0]))}: ${this.escapeHtml(String(rows[0][1]))}`;
+                }
+                html += '</p>';
+            } else {
+                // For multiple rows, display as a table
+                html += '<div style="max-height: 300px; overflow-y: auto; margin: 0.5rem 0;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">';
+                html += '<thead><tr>';
+                columns.forEach(col => {
+                    html += `<th style="text-align: left; padding: 0.4rem; border-bottom: 2px solid var(--primary-red); color: var(--accent-gold);">${this.escapeHtml(col.name)}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+                
+                // Limit to first 10 rows for display
+                const displayRows = rows.slice(0, 10);
+                displayRows.forEach((row, idx) => {
+                    html += `<tr style="border-bottom: 1px solid rgba(225, 6, 0, 0.2);">`;
+                    row.forEach(cell => {
+                        html += `<td style="padding: 0.4rem;">${this.escapeHtml(String(cell || ''))}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                
+                if (rows.length > 10) {
+                    html += `<p style="font-size: 0.85rem; font-style: italic; margin-top: 0.5rem;">Showing first 10 of ${rows.length} results</p>`;
+                }
+            }
+            
+            html += `<p style="font-size: 0.85rem; color: var(--gray-text); margin-top: 0.5rem;">Total: ${rows.length} result(s)</p>`;
         }
         
         // Show query in collapsible section

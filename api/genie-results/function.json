@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["get"],
-      "route": "genie/results/{statementId}"
+      "route": "genie/results/{conversationId}/{messageId}/{attachmentId}"
     },
     {
       "type": "http",

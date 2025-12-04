@@ -19,24 +19,7 @@ module.exports = async function (context, req) {
         return;
     }
 
-    const { statementId } = req.params;
-
-    if (!statementId) {
-        context.res = {
-            status: 400,
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ error: 'Statement ID is required' })
-        };
-        return;
-    }
-
-    // Extract parameters - expecting format: conversationId/messageId/attachmentId
-    const parts = statementId.split('/');
-    const conversationId = parts[0];
-    const messageId = parts[1];
-    const attachmentId = parts[2];
+    const { conversationId, messageId, attachmentId } = req.params;
 
     if (!conversationId || !messageId || !attachmentId) {
         context.res = {
@@ -44,7 +27,7 @@ module.exports = async function (context, req) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ error: 'Invalid statement ID format. Expected: conversationId/messageId/attachmentId' })
+            body: JSON.stringify({ error: 'conversationId, messageId, and attachmentId are required' })
         };
         return;
     }

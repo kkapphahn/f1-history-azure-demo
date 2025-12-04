@@ -42,13 +42,19 @@ module.exports = async function (context, req) {
 
     try {
         // Create or continue conversation with Databricks Genie
-        const genieUrl = `${DATABRICKS_WORKSPACE_URL}/api/2.0/genie/spaces/${GENIE_SPACE_ID}/start-conversation`;
+        // Use create-message endpoint which returns the message after submission
+        const genieUrl = conversationId 
+            ? `${DATABRICKS_WORKSPACE_URL}/api/2.0/genie/spaces/${GENIE_SPACE_ID}/conversations/${conversationId}/messages`
+            : `${DATABRICKS_WORKSPACE_URL}/api/2.0/genie/spaces/${GENIE_SPACE_ID}/start-conversation`;
         
         const requestBody = {
             content: message
         };
 
-        if (conversationId) {
+        if (conversationId && genieUrl.includes('/messages')) {
+            // When adding to existing conversation, don't include conversation_id in body
+            delete requestBody.conversation_id;
+        } else if (conversationId) {
             requestBody.conversation_id = conversationId;
         }
 

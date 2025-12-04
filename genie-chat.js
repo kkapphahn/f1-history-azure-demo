@@ -259,13 +259,8 @@ class GenieChat {
     async formatQueryResults(resultsData, query) {
         let html = '<div style="margin-bottom: 1rem;">';
         
-        // Add description if available
-        if (query.description) {
-            html += `<p style="margin-bottom: 0.5rem; font-weight: 600;">Answer:</p>`;
-        }
-        
         // Display the actual data results
-        if (resultsData.result && resultsData.result.data_array) {
+        if (resultsData && resultsData.result && resultsData.result.data_array) {
             const columns = resultsData.manifest.schema.columns || [];
             const rows = resultsData.result.data_array;
             
@@ -324,18 +319,27 @@ class GenieChat {
     formatQueryMetadata(query) {
         let html = '<div style="margin-bottom: 1rem;">';
         
-        if (query.description) {
-            html += `<p style="margin-bottom: 0.5rem;">${this.escapeHtml(query.description)}</p>`;
+        // Show a message that results are available
+        if (query.query_result_metadata && query.query_result_metadata.row_count !== undefined) {
+            const count = query.query_result_metadata.row_count;
+            html += `<p style="font-size: 1rem; margin-bottom: 0.5rem;">✓ Query executed successfully</p>`;
+            html += `<p style="font-size: 0.95rem; color: var(--accent-gold); margin-bottom: 1rem;">📊 Found ${count} result${count !== 1 ? 's' : ''}</p>`;
+            
+            if (count > 0) {
+                html += `<p style="font-size: 0.9rem; color: var(--gray-text); font-style: italic; margin-bottom: 1rem;">Note: To see the actual results, you can run this query in your Databricks workspace, or the data may appear in suggested follow-up questions below.</p>`;
+            }
         }
         
+        // Show query in collapsible section
         if (query.query) {
-            html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; margin: 0.5rem 0; font-family: monospace; font-size: 0.85rem; overflow-x: auto;">`;
+            html += '<details style="margin-top: 0.5rem;"><summary style="cursor: pointer; font-size: 0.9rem; color: var(--primary-red); font-weight: 600;">▶ View SQL Query</summary>';
+            html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-family: monospace; font-size: 0.75rem; overflow-x: auto; max-height: 200px; overflow-y: auto;">`;
             html += `<code>${this.escapeHtml(query.query)}</code>`;
             html += `</div>`;
-        }
-        
-        if (query.query_result_metadata && query.query_result_metadata.row_count !== undefined) {
-            html += `<p style="font-size: 0.9rem; color: var(--accent-gold); margin-top: 0.5rem;">📊 Found ${query.query_result_metadata.row_count} result(s)</p>`;
+            if (query.description) {
+                html += `<p style="font-size: 0.85rem; margin-top: 0.5rem; color: var(--gray-text);">${this.escapeHtml(query.description)}</p>`;
+            }
+            html += '</details>';
         }
         
         html += '</div>';
